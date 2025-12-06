@@ -15,8 +15,8 @@ jwt = JWTManager(app)
 
 #HELPER FUCTIONS
 def to_format(data, fmt):
-    if fmt.lower() == 'xml':
-        xml = dicttoxml(data, custom_root='response'm attr_type=False)
+    if fmt and fmt.lower() == 'xml':
+        xml = dicttoxml(data, custom_root='response', attr_type=False)
         response = make_response(xml)
         response.headers['Content-Type'] = 'application/xml'
         return response
@@ -53,20 +53,25 @@ def home():
     return 'Hello!'
 
 @app.route('/fruits', methods=['GET'])
+@jwt_required(optional=True)
 def get_fruits():
-    cur = mysql.connection.cursor()
-    cur.execute('SELECT * FROM fruits')
-    data = cur.fetchall()
-    cur.close()
+    fmt = request.args.get('format')
+    q = request.args.get('q')
+    if q:
+        qlike = f'%{q}%'
+        rows = fetchall("SELECT * FROM fruits WHERE name LIKE %s OR acquired_from LIKE %s", (qlike, qlike))
+    else:
+        rows = fetchall('SELECT * FROM fruits')
+    return to_format({'fruits': rows}, fmt)
 
-    return jsonify(data), 200
-
-@app.route('/fruits/add')
-def create_fruit(user_id):
-    data = request.get_json()
-
-    #add na lang ng logic here
-    return jsonify(data), 200
+@app.route('/fruits/<int:item_id>', methods=['GET'])
+@jwt_required(optional=True)
+def get_fruit(item_id):
+    fmt = request.args.get('format')
+    row = fetchone("SELECT * FROM fruits WHERE id=%s", (item_id,))
+    if not row:
+        return jsonify({"msg": "Not Found"}), 404
+    return to_format({"fruits": row}, fmt)
 
 if __name__ == '__main__':
     app.run(debug=True)
