@@ -1,15 +1,52 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify, make_response
 from flask_mysqldb import MySQL
-from flask import jsonify
+from dicttoxml import dicttoxml
+from flask_jwt_extended import (
+    JWTManager, create_access_token, jwt_required, get_jwt_identity
+)
+import re
+from config import Config
 
 app = Flask(__name__)
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'root'
-app.config['MYSQL_DB'] = 'lagdb'
-app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+app.config.from_object(Config)
 
 mysql = MySQL(app)
+jwt = JWTManager(app)
+
+#HELPER FUCTIONS
+def to_format(data, fmt):
+    if fmt.lower() == 'xml':
+        xml = dicttoxml(data, custom_root='response'm attr_type=False)
+        response = make_response(xml)
+        response.headers['Content-Type'] = 'application/xml'
+        return response
+    else:
+        response = make_response(jsonify(data))
+        response.headers['Content-Type'] = 'application/json'
+        return response
+
+def validate_int(val):
+    try:
+        return int(val)
+    except:
+        return None
+
+def fetchone(query, args=()):
+    cur = mysql.connection.cursor()
+    cur.execute(query, args)
+    rv = cur.fetchone()
+    cur.close()
+    return rv
+
+def fetchall(query, args=()):
+    cur = mysql.connection.cursor()
+    cur.execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return rv
+
+
+# MAIN
 
 @app.route('/')
 def home():
