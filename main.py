@@ -81,6 +81,7 @@ def get_fruits():
         rows = fetchall('SELECT * FROM fruits')
     return to_format({'fruits': rows}, fmt)
 
+
 @app.route('/fruits/<int:item_id>', methods=['GET'])
 @jwt_required(optional=True)
 def get_fruit(item_id):
@@ -89,6 +90,7 @@ def get_fruit(item_id):
     if not row:
         return jsonify({"msg": "Not Found"}), 404
     return to_format({"fruits": row}, fmt)
+
 
 @app.route('/fruits>', methods=['PUT'])
 @jwt_required()
@@ -100,18 +102,52 @@ def create_fruit():
     cur = mysql.connection.cursor()
     cur.execute(
         'INSERT INTO fruits (name, is_rotten, is_ripe, acquired_from, color, category_id) VALUES (%s,%s,%s,%s,%s,%s,)',
-        payload.get('name'),
-        int(bool(payload.get('is_rotten', 0))),
-        int(bool(payload.get('is_ripe', 0))),
-        payload.get('acquired_from'),
-        payload.get('color'),
-        payload.get('category_id'),
+        (
+            payload.get('name'),
+            int(bool(payload.get('is_rotten', 0))),
+            int(bool(payload.get('is_ripe', 0))),
+            payload.get('acquired_from'),
+            payload.get('color'),
+            payload.get('category_id'),
+        )
     )
     mysql.connection.commit()
     new_id = cur.lastrowid
     cur.close()
     return jsonify({"msg": "created", "id": new_id}), 201
 
+
+@app.route('/fruits/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_fruit(item_id):
+    payload = request.get_json() or {}
+    if not payload:
+        return jsonify({"msg": "No payload"}), 400
+    errors = validate_fruit_payload(payload, partial=True)
+    if errors:
+        return jsonify({"errors": errors}), 400
+    # build dynamic set clause
+    keys = []
+    vals = []
+    allowed = ["name","is_rotten","is_ripe","acquired_from","color","category_id"]
+    for k in allowed:
+        if k in payload:
+            keys.append(f"{k}=%s")
+            if k in ("is_rotten","is_ripe"):
+                vals.append(int(bool(payload[k])))
+            else:
+                vals.append(payload[k])
+    if not keys:
+        return jsonify({"msg": "Nothing to update"}), 400
+    vals.append(item_id)
+    cur = mysql.connection.cursor()
+    cur.execute(f"UPDATE fruits SET {', '.join(keys)} WHERE id=%s", tuple(vals))
+    mysql.connection.commit()
+    changed = cur.rowcount
+    cur.close()
+    if changed == 0:
+        return jsonify({"msg":"Not found"}), 404
+    return jsonify({"msg":"updated"}), 200
 
 
 if __name__ == '__main__':
