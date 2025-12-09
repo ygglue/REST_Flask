@@ -45,6 +45,23 @@ def fetchall(query, args=()):
     cur.close()
     return rv
 
+def validate_fruit_payload(payload, partial=False):
+    errors = []
+    if not partial:
+        if "name" not in payload:
+            errors.append("name is required")
+    if "name" in payload and (not isinstance(payload["name"], str) or not payload["name"].strip()):
+        errors.append("name must be a non-empty string")
+    if "is_rotten" in payload:
+        if payload["is_rotten"] not in (0, 1, "0", "1", True, False):
+            errors.append("is_rotten must be a boolean/int 0 or 1")
+    if "is_ripe" in payload:
+        if payload["is_ripe"] not in (0, 1, "0", "1", True, False):
+            errors.append("is_rotten must be a boolean/int 0 or 1")
+    if "category_id" in payload:
+        if validate_int(payload["category_id"]) is None:
+            errors.append("category_id must be integer")
+    return errors
 
 # MAIN
 
@@ -72,6 +89,30 @@ def get_fruit(item_id):
     if not row:
         return jsonify({"msg": "Not Found"}), 404
     return to_format({"fruits": row}, fmt)
+
+@app.route('/fruits>', methods=['PUT'])
+@jwt_required()
+def create_fruit():
+    payload = request.get_json() or {}
+    errors = validate_fruit_payload(payload, partial=False)
+    if errors:
+        return jsonify({"errors": errors}), 400
+    cur = mysql.connection.cursor()
+    cur.execute(
+        'INSERT INTO fruits (name, is_rotten, is_ripe, acquired_from, color, category_id) VALUES (%s,%s,%s,%s,%s,%s,)',
+        payload.get('name'),
+        int(bool(payload.get('is_rotten', 0))),
+        int(bool(payload.get('is_ripe', 0))),
+        payload.get('acquired_from'),
+        payload.get('color'),
+        payload.get('category_id'),
+    )
+    mysql.connection.commit()
+    new_id = cur.lastrowid
+    cur.close()
+    return jsonify({"msg": "created", "id": new_id}), 201
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
