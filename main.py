@@ -13,6 +13,18 @@ app.config.from_object(Config)
 mysql = MySQL(app)
 jwt = JWTManager(app)
 
+DEMO_USER = {"username": "admin", "password": "adminpass"}
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json() or {}
+    username = data.get("username")
+    password = data.get("password")
+    if username == DEMO_USER["username"] and password == DEMO_USER["password"]:
+        access_token = create_access_token(identity=username)
+        return jsonify(access_token=access_token), 200
+    return jsonify({"msg": "Bad credentials"}), 401
+
 #HELPER FUCTIONS
 def to_format(data, fmt):
     if fmt and fmt.lower() == 'xml':
@@ -126,7 +138,6 @@ def update_fruit(item_id):
     errors = validate_fruit_payload(payload, partial=True)
     if errors:
         return jsonify({"errors": errors}), 400
-    # build dynamic set clause
     keys = []
     vals = []
     allowed = ["name","is_rotten","is_ripe","acquired_from","color","category_id"]
@@ -149,6 +160,17 @@ def update_fruit(item_id):
         return jsonify({"msg":"Not found"}), 404
     return jsonify({"msg":"updated"}), 200
 
+@app.route("/fruits/<int:item_id>", methods=["DELETE"])
+@jwt_required()
+def delete_fruit(item_id):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM fruits WHERE id=%s", (item_id,))
+    mysql.connection.commit()
+    rc = cur.rowcount
+    cur.close()
+    if rc == 0:
+        return jsonify({"msg": "Not found"}), 404
+    return jsonify({"msg": "deleted"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
