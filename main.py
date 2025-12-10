@@ -13,7 +13,7 @@ app.config.from_object(Config)
 mysql = MySQL(app)
 jwt = JWTManager(app)
 
-DEMO_USER = {"username": "admin", "password": "adminpass"}
+DEMO_USER = {"username": "admin", "password": "admin"}
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -104,7 +104,7 @@ def get_fruit(item_id):
     return to_format({"fruits": row}, fmt)
 
 
-@app.route('/fruits>', methods=['PUT'])
+@app.route('/fruits', methods=['POST'])
 @jwt_required()
 def create_fruit():
     payload = request.get_json() or {}
@@ -113,14 +113,14 @@ def create_fruit():
         return jsonify({"errors": errors}), 400
     cur = mysql.connection.cursor()
     cur.execute(
-        'INSERT INTO fruits (name, is_rotten, is_ripe, acquired_from, color, category_id) VALUES (%s,%s,%s,%s,%s,%s,)',
+        "INSERT INTO fruits (name, is_rotten, is_ripe, acquired_from, color, category_id) VALUES (%s,%s,%s,%s,%s,%s)",
         (
-            payload.get('name'),
-            int(bool(payload.get('is_rotten', 0))),
-            int(bool(payload.get('is_ripe', 0))),
-            payload.get('acquired_from'),
-            payload.get('color'),
-            payload.get('category_id'),
+            payload.get("name"),
+            int(bool(payload.get("is_rotten", 0))),
+            int(bool(payload.get("is_ripe", 0))),
+            payload.get("acquired_from"),
+            payload.get("color"),
+            payload.get("category_id"),
         )
     )
     mysql.connection.commit()
