@@ -62,6 +62,8 @@ def validate_fruit_payload(payload, partial=False):
     if not partial:
         if "name" not in payload:
             errors.append("name is required")
+        if "category_id" not in payload:
+            errors.append("category_id is required")
     if "name" in payload and (not isinstance(payload["name"], str) or not payload["name"].strip()):
         errors.append("name must be a non-empty string")
     if "is_rotten" in payload:
